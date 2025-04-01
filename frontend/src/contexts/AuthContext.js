@@ -89,16 +89,16 @@ export const AuthProvider = ({ children }) => {
 
   const updateProfile = async (updates) => {
     try {
-      const response = await axios.put('/api/users/profile', updates, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
+      const response = await axios.put(
+        `${API_URL}/api/users/profile`,
+        updates,
+        { headers: getAuthHeaders(token) }
+      );
+
       const updatedUser = response.data;
       localStorage.setItem('user', JSON.stringify(updatedUser));
       setCurrentUser(updatedUser);
-      
+
       return updatedUser;
     } catch (error) {
       console.error('Update profile error:', error);
@@ -112,8 +112,8 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     register,
-    verifyAuth,
-    updateProfile
+    updateProfile,
+    verifyAuth
   };
 
   return (
