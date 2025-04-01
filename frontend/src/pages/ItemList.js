@@ -18,7 +18,8 @@ import {
   Collapse,
   Paper,
   CardActionArea,
-  CircularProgress
+  CircularProgress,
+  Alert
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -114,6 +115,11 @@ function ItemList() {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
       <Typography variant="h4" component="h1" gutterBottom sx={{ mb: 4 }}>
         Available Items
       </Typography>

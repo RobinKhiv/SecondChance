@@ -51,7 +51,10 @@ export const itemsApi = {
   }
 };
 
-const avatarOptions = [
+// eslint-disable-next-line no-unused-vars
+export const avatarOptions = [
+  'https://api.dicebear.com/7.x/adventurer/svg?seed=1',
+  'https://api.dicebear.com/7.x/adventurer/svg?seed=2',
   'https://api.dicebear.com/7.x/avataaars/svg?seed=1',
   'https://api.dicebear.com/7.x/avataaars/svg?seed=2',
   'https://api.dicebear.com/7.x/avataaars/svg?seed=3',

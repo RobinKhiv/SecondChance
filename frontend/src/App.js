@@ -12,7 +12,6 @@ import ItemDetail from './pages/ItemDetail';
 import SellItem from './pages/SellItem';
 import Profile from './pages/Profile';
 import { useAuth } from './contexts/AuthContext';
-import { itemsApi } from './services/api';
 import { Navigate } from 'react-router-dom';
 
 // Protected Route component

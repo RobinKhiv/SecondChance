@@ -28,8 +28,6 @@ import {
 import EditIcon from '@mui/icons-material/Edit';
 import UserAvatar from '../components/UserAvatar';
 
-const API_URL = 'http://localhost:5001/api';
-
 function Profile() {
   const { currentUser, token, updateProfile } = useAuth();
   const navigate = useNavigate();
@@ -77,7 +75,7 @@ function Profile() {
         return;
       }
 
-      const itemsResponse = await axios.get(`${API_URL}/users/items`, {
+      const itemsResponse = await axios.get('/api/users/items', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
