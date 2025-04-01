@@ -8,7 +8,10 @@ const jwt = require('jsonwebtoken');
 
 const app = express();
 app.use(express.json());
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true
+}));
 
 // Initialize database
 const db = new sqlite3.Database(path.join(__dirname, 'database.sqlite'));
@@ -382,5 +385,12 @@ app.get('/api/users/me', async (req, res) => {
   }
 });
 
-// Export the serverless handler
-module.exports.handler = serverless(app); 
+// For local development with serverless-offline
+if (process.env.IS_OFFLINE) {
+  module.exports.handler = serverless(app);
+} else {
+  // For AWS Lambda
+  module.exports.handler = async (event, context) => {
+    // ... your Lambda handler code ...
+  };
+} 

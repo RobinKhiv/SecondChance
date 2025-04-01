@@ -1,28 +1,41 @@
-service: secondchance-api
+service: secondchance
 
 provider:
   name: aws
   runtime: nodejs18.x
   stage: dev
-  profile: secondchance
-
-plugins:
-  - serverless-offline
+  region: us-east-1
 
 functions:
   api:
     handler: lambda.handler
     events:
       - http:
-          path: /api/{proxy+}
-          method: ANY
+          path: /api/auth/login
+          method: post
           cors: true
       - http:
-          path: /{proxy+}
-          method: ANY
+          path: /api/users/items
+          method: get
           cors: true
+      - http:
+          path: /api/users/profile
+          method: put
+          cors: true
+      - http:
+          path: /api/items
+          method: get
+          cors: true
+      - http:
+          path: /api/items/{id}
+          method: get
+          cors: true
+
+plugins:
+  - serverless-offline
 
 custom:
   serverless-offline:
     httpPort: 5001
+    host: localhost
     noPrependStageInUrl: true 
