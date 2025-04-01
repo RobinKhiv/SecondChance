@@ -1,178 +1,197 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { 
-  Card, 
-  CardContent, 
-  Typography, 
-  Box, 
-  CircularProgress,
+import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import axios from 'axios';
+import { API_URL, getAuthHeaders } from '../config/api';
+import {
   Container,
   Paper,
+  Typography,
+  Button,
+  Box,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Alert,
+  Card,
+  CardMedia,
+  CardContent,
+  CircularProgress,
+  Avatar,
+  Grid,
   Divider
 } from '@mui/material';
 import UserAvatar from '../components/UserAvatar';
 
 function ItemDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const { currentUser, token } = useAuth();
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [openDialog, setOpenDialog] = useState(false);
+  const [purchaseLoading, setPurchaseLoading] = useState(false);
+
+  const fetchItem = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/items/${id}`);
+      const itemData = response.data;
+      if (typeof itemData.images === 'string') {
+        itemData.images = JSON.parse(itemData.images);
+      }
+      setItem(itemData);
+    } catch (error) {
+      console.error('Error fetching item:', error);
+      setError('Failed to load item details');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePurchase = async () => {
+    try {
+      setPurchaseLoading(true);
+      const response = await axios.post(
+        `${API_URL}/api/items/${id}/purchase`,
+        {},
+        {
+          headers: getAuthHeaders(token)
+        }
+      );
+      setOpenDialog(false);
+      navigate('/profile'); // Redirect to profile after purchase
+    } catch (error) {
+      console.error('Purchase error:', error);
+      setError(error.response?.data?.error || 'Failed to purchase item');
+    } finally {
+      setPurchaseLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchItem = async () => {
-      try {
-        const response = await fetch(`http://localhost:5001/api/items/${id}`);
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        setItem(data);
-      } catch (error) {
-        console.error('Error fetching item:', error);
-        setError(error.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchItem();
   }, [id]);
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+      <Container sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
         <CircularProgress />
-      </Box>
+      </Container>
     );
   }
 
   if (error) {
     return (
-      <Container maxWidth="md" sx={{ mt: 4 }}>
-        <Paper sx={{ p: 3, textAlign: 'center', bgcolor: '#fff4f4' }}>
-          <Typography color="error">Error: {error}</Typography>
-        </Paper>
+      <Container sx={{ mt: 4 }}>
+        <Alert severity="error">{error}</Alert>
       </Container>
     );
   }
 
   if (!item) {
     return (
-      <Container maxWidth="md" sx={{ mt: 4 }}>
-        <Paper sx={{ p: 3, textAlign: 'center' }}>
-          <Typography>Item not found</Typography>
-        </Paper>
+      <Container sx={{ mt: 4 }}>
+        <Alert severity="info">Item not found</Alert>
       </Container>
     );
   }
 
+  const canPurchase = currentUser && currentUser.id !== item.seller_id && !item.buyer_id;
+
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
-      <Card sx={{ 
-        boxShadow: 3,
-        borderRadius: 2,
-        overflow: 'hidden',
-        bgcolor: 'background.paper'
-      }}>
-        <CardContent sx={{ p: 4 }}>
-          {/* Title and Price Section */}
-          <Box sx={{ mb: 3 }}>
-            <Typography 
-              variant="h4" 
-              component="h1" 
-              gutterBottom
-              sx={{ 
-                fontWeight: 'medium',
-                color: 'text.primary'
-              }}
+    <Container maxWidth="md" sx={{ mt: 4 }}>
+      <Card>
+        <CardMedia
+          component="img"
+          height="400"
+          image={item.images?.[0] || 'https://via.placeholder.com/400x300'}
+          alt={item.title}
+          sx={{ objectFit: 'contain' }}
+        />
+        <CardContent>
+          <Typography variant="h4" gutterBottom>
+            {item.title}
+          </Typography>
+          <Typography variant="h6" color="primary" gutterBottom>
+            ${item.price.toFixed(2)}
+          </Typography>
+          <Typography variant="body1" paragraph>
+            {item.description}
+          </Typography>
+          
+          {canPurchase && (
+            <Button
+              variant="contained"
+              color="primary"
+              fullWidth
+              onClick={() => setOpenDialog(true)}
+              sx={{ mb: 2 }}
             >
-              {item.title}
-            </Typography>
-            <Typography 
-              variant="h5" 
-              sx={{ 
-                color: 'primary.main',
-                fontWeight: 'bold'
-              }}
-            >
-              ${item.price.toFixed(2)}
-            </Typography>
-          </Box>
+              Purchase Item
+            </Button>
+          )}
 
-          <Divider sx={{ my: 3 }} />
+          {item.buyer_id && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              This item has been sold
+            </Alert>
+          )}
 
-          {/* Description Section */}
-          <Box sx={{ mb: 4 }}>
-            <Typography 
-              variant="h6" 
-              gutterBottom
-              sx={{ color: 'text.secondary' }}
-            >
-              Description
-            </Typography>
-            <Typography 
-              variant="body1" 
-              sx={{ 
-                color: 'text.primary',
-                lineHeight: 1.7
-              }}
-            >
-              {item.description}
-            </Typography>
-          </Box>
-
-          <Divider sx={{ my: 3 }} />
-
+          {currentUser?.id === item.seller_id && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              This is your listing
+            </Alert>
+          )}
+          
+          <Divider sx={{ my: 2 }} />
+          
           {/* Seller Information */}
-          <Paper 
-            elevation={0} 
-            sx={{ 
-              p: 3,
-              bgcolor: 'grey.50',
-              borderRadius: 2
-            }}
-          >
-            <Typography 
-              variant="h6" 
-              gutterBottom
-              sx={{ color: 'text.secondary', mb: 2 }}
-            >
-              Seller Information
-            </Typography>
-            <Box sx={{ 
-              display: 'flex', 
-              alignItems: 'center'
-            }}>
-              <UserAvatar 
-                src={item.seller_avatar}
-                alt={item.seller_email}
-                size={48}
-                sx={{ 
-                  border: 2,
-                  borderColor: 'background.paper'
-                }}
-              />
-              <Box sx={{ ml: 2 }}>
-                <Typography 
-                  variant="subtitle1"
-                  sx={{ 
-                    fontWeight: 'medium',
-                    color: 'text.primary'
-                  }}
-                >
+          <Box sx={{ mt: 2 }}>
+            <Grid container alignItems="center" spacing={2}>
+              <Grid item>
+                <Avatar 
+                  src={item.seller_avatar} 
+                  alt={item.seller_email}
+                  sx={{ width: 56, height: 56 }}
+                />
+              </Grid>
+              <Grid item>
+                <Typography variant="subtitle1">
+                  Seller Information
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
                   {item.seller_email}
                 </Typography>
-                <Typography 
-                  variant="body2" 
-                  sx={{ color: 'text.secondary' }}
-                >
-                  Verified Seller
-                </Typography>
-              </Box>
-            </Box>
-          </Paper>
+              </Grid>
+            </Grid>
+          </Box>
         </CardContent>
       </Card>
+
+      {/* Purchase Confirmation Dialog */}
+      <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
+        <DialogTitle>Confirm Purchase</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to purchase {item.title} for ${item.price.toFixed(2)}?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDialog(false)} disabled={purchaseLoading}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handlePurchase} 
+            color="primary" 
+            variant="contained"
+            disabled={purchaseLoading}
+          >
+            {purchaseLoading ? 'Processing...' : 'Confirm Purchase'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }

@@ -23,308 +23,387 @@ import {
   IconButton,
   Tabs,
   Tab,
-  Rating
+  Rating,
+  Chip,
+  Divider
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import UserAvatar from '../components/UserAvatar';
+import { API_URL, getAuthHeaders } from '../config/api';
+
+const ITEMS_PER_PAGE = 6;
+
+const AVATAR_OPTIONS = [
+  "https://api.dicebear.com/7.x/adventurer/svg?seed=1",
+  "https://api.dicebear.com/7.x/adventurer/svg?seed=2",
+  "https://api.dicebear.com/7.x/adventurer/svg?seed=3",
+  "https://api.dicebear.com/7.x/adventurer/svg?seed=4",
+  "https://api.dicebear.com/7.x/adventurer/svg?seed=5",
+  "https://api.dicebear.com/7.x/adventurer/svg?seed=6"
+];
 
 function Profile() {
   const { currentUser, token, updateProfile } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
+  const [openAvatarDialog, setOpenAvatarDialog] = useState(false);
+  const [selectedAvatar, setSelectedAvatar] = useState(currentUser?.avatar);
   const [activeTab, setActiveTab] = useState(0);
-  const [userProfile, setUserProfile] = useState({
+  const [data, setData] = useState({
     activeListings: [],
     soldItems: [],
-    stats: {
-      totalRatings: 0,
-      averageRating: 0,
-      totalSales: 0
-    }
+    purchases: [],
+    loading: true,
+    error: null
   });
+  const [visibleItems, setVisibleItems] = useState(ITEMS_PER_PAGE);
+  const [updating, setUpdating] = useState(false);
 
-  const avatarOptions = [
-    'https://api.dicebear.com/7.x/adventurer/svg?seed=1',
-    'https://api.dicebear.com/7.x/adventurer/svg?seed=2',
-    'https://api.dicebear.com/7.x/adventurer/svg?seed=3',
-    'https://api.dicebear.com/7.x/adventurer/svg?seed=4',
-    'https://api.dicebear.com/7.x/adventurer/svg?seed=5',
-    'https://api.dicebear.com/7.x/adventurer/svg?seed=6',
-  ];
-
-  const handleAvatarSelect = async (newAvatar) => {
+  const fetchUserData = useCallback(async () => {
+    if (!token) return;
+    
     try {
-      await updateProfile({ avatar: newAvatar });
-      setAvatarDialogOpen(false);
-    } catch (error) {
-      console.error('Error updating avatar:', error);
-      setError('Failed to update avatar');
-    }
-  };
+      const [activeRes, purchasesRes] = await Promise.all([
+        axios.get(`${API_URL}/api/users/items`, {
+          headers: getAuthHeaders(token)
+        }),
+        axios.get(`${API_URL}/api/users/purchases`, {
+          headers: getAuthHeaders(token)
+        })
+      ]);
 
-  const handleTabChange = (event, newValue) => {
-    setActiveTab(newValue);
-  };
+      const allItems = activeRes.data.map(item => ({
+        ...item,
+        images: typeof item.images === 'string' ? JSON.parse(item.images) : item.images
+      }));
 
-  const fetchUserProfile = useCallback(async () => {
-    try {
-      if (!token || !currentUser) {
-        navigate('/login');
-        return;
-      }
+      const activeListings = allItems.filter(item => !item.buyer_id);
+      const soldItems = allItems.filter(item => item.buyer_id);
+      
+      const purchases = purchasesRes.data.map(item => ({
+        ...item,
+        images: typeof item.images === 'string' ? JSON.parse(item.images) : item.images
+      }));
 
-      const itemsResponse = await axios.get('/api/users/items', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      const items = itemsResponse.data || [];
-      console.log('Items fetched:', items); // Debug log
-
-      setUserProfile({
-        activeListings: items,
-        soldItems: [],
-        stats: {
-          totalRatings: 0,
-          averageRating: 0,
-          totalSales: 0
-        }
+      setData({
+        activeListings,
+        soldItems,
+        purchases,
+        loading: false,
+        error: null
       });
     } catch (error) {
-      console.error('Error fetching profile:', error);
-      setError('Failed to load profile data');
-    } finally {
-      setLoading(false);
+      console.error('Error fetching profile data:', error);
+      setData(prev => ({
+        ...prev,
+        loading: false,
+        error: 'Failed to load profile data'
+      }));
     }
-  }, [token, currentUser, navigate]);
+  }, [token]);
 
   useEffect(() => {
-    fetchUserProfile();
-  }, [fetchUserProfile]);
+    fetchUserData();
+  }, [fetchUserData]);
 
-  console.log('Rendering Profile with:', {
-    loading,
-    error,
-    activeListingsCount: userProfile.activeListings.length,
-    activeListings: userProfile.activeListings
-  });
+  useEffect(() => {
+    // Reset visible items when changing tabs
+    setVisibleItems(ITEMS_PER_PAGE);
+  }, [activeTab]);
 
-  if (loading) {
+  const getCurrentItems = () => {
+    const items = activeTab === 0 ? data.activeListings :
+                 activeTab === 1 ? data.soldItems :
+                 data.purchases;
+    return items || [];
+  };
+
+  const loadMore = () => {
+    setVisibleItems(prev => prev + ITEMS_PER_PAGE);
+  };
+
+  const ItemGrid = ({ items, type }) => {
+    const displayedItems = items.slice(0, visibleItems);
+    
     return (
-      <Container>
+      <>
+        <Grid container spacing={3}>
+          {displayedItems.map((item) => (
+            <Grid item xs={12} sm={6} md={4} key={item.id}>
+              <Card>
+                <CardMedia
+                  component="img"
+                  height="200"
+                  image={item.images?.[0] || 'https://via.placeholder.com/400x300'}
+                  alt={item.title}
+                  sx={{ objectFit: 'cover' }}
+                />
+                <CardContent>
+                  <Typography variant="h6" noWrap>
+                    {item.title}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    ${item.price?.toFixed(2)}
+                  </Typography>
+                  {type === 'sold' && (
+                    <Chip 
+                      label="Sold" 
+                      color="success" 
+                      size="small" 
+                      sx={{ mt: 1 }} 
+                    />
+                  )}
+                  {type === 'purchased' && (
+                    <Chip 
+                      label="Purchased" 
+                      color="primary" 
+                      size="small" 
+                      sx={{ mt: 1 }} 
+                    />
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+        {items.length > visibleItems && (
+          <Box sx={{ mt: 3, textAlign: 'center' }}>
+            <Button variant="outlined" onClick={loadMore}>
+              Load More
+            </Button>
+          </Box>
+        )}
+      </>
+    );
+  };
+
+  const handleUpdateAvatar = async () => {
+    try {
+      setUpdating(true);
+      await axios.put(
+        `${API_URL}/api/users/profile`,
+        { avatar: selectedAvatar },
+        { headers: getAuthHeaders(token) }
+      );
+      await updateProfile({ avatar: selectedAvatar });
+      setOpenAvatarDialog(false);
+    } catch (error) {
+      console.error('Error updating avatar:', error);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  if (!currentUser) {
+    return (
+      <Container sx={{ mt: 4 }}>
+        <Alert severity="info">Please log in to view your profile</Alert>
+      </Container>
+    );
+  }
+
+  if (data.loading) {
+    return (
+      <Container sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
         <CircularProgress />
       </Container>
     );
   }
 
-  if (error) {
-    return (
-      <Container>
-        <Alert severity="error">{error}</Alert>
-      </Container>
-    );
-  }
-
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Box sx={{ maxWidth: '100%', mx: 'auto' }}>
-        {/* User Info Card */}
-        <Paper elevation={2} sx={{ p: 3, mb: 4, borderRadius: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 3 }}>
-            {/* Avatar Section */}
+    <Container maxWidth="lg" sx={{ mt: 4 }}>
+      {/* User Profile Section */}
+      <Paper sx={{ p: 3, mb: 4 }}>
+        <Grid container spacing={3} alignItems="center">
+          <Grid item>
             <Box sx={{ position: 'relative' }}>
-              <UserAvatar
+              <Avatar
                 src={currentUser?.avatar}
                 alt={currentUser?.email}
-                sx={{ 
-                  width: 100, 
-                  height: 100,
-                  cursor: 'pointer',
-                  '&:hover': { opacity: 0.8 }
-                }}
-                onClick={() => setAvatarDialogOpen(true)}
+                sx={{ width: 100, height: 100 }}
               />
               <IconButton
-                size="small"
                 sx={{
                   position: 'absolute',
-                  bottom: 0,
-                  right: 0,
-                  bgcolor: 'background.paper',
-                  '&:hover': { bgcolor: 'grey.200' }
+                  bottom: -8,
+                  right: -8,
+                  backgroundColor: 'background.paper'
                 }}
-                onClick={() => setAvatarDialogOpen(true)}
+                onClick={() => setOpenAvatarDialog(true)}
               >
-                <EditIcon fontSize="small" />
+                <EditIcon />
               </IconButton>
             </Box>
+          </Grid>
+          <Grid item xs>
+            <Typography variant="h5">
+              {currentUser?.email}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Member since {new Date().toLocaleDateString()} {/* We'll update this when we have the actual join date */}
+            </Typography>
+          </Grid>
+        </Grid>
+      </Paper>
 
-            {/* User Info Section */}
-            <Box sx={{ flexGrow: 1 }}>
-              <Typography variant="h5" gutterBottom>
-                {currentUser?.email}
-              </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
-                <Rating value={userProfile.stats.averageRating} readOnly />
-                <Typography variant="body2" color="text.secondary">
-                  ({userProfile.stats.totalRatings} ratings)
-                </Typography>
-              </Box>
-              <Typography variant="body2" color="text.secondary">
-                Total Sales: {userProfile.stats.totalSales}
-              </Typography>
-            </Box>
-          </Box>
-        </Paper>
+      {/* Avatar Selection Dialog */}
+      <Dialog open={openAvatarDialog} onClose={() => setOpenAvatarDialog(false)}>
+        <DialogTitle>Choose Your Avatar</DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            {AVATAR_OPTIONS.map((avatar, index) => (
+              <Grid item xs={4} key={index}>
+                <Avatar
+                  src={avatar}
+                  alt={`Avatar option ${index + 1}`}
+                  sx={{
+                    width: 80,
+                    height: 80,
+                    cursor: 'pointer',
+                    border: selectedAvatar === avatar ? '2px solid primary.main' : 'none'
+                  }}
+                  onClick={() => setSelectedAvatar(avatar)}
+                />
+              </Grid>
+            ))}
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenAvatarDialog(false)}>Cancel</Button>
+          <Button 
+            onClick={handleUpdateAvatar} 
+            variant="contained" 
+            disabled={updating || selectedAvatar === currentUser?.avatar}
+          >
+            {updating ? 'Updating...' : 'Update Avatar'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
-        {/* Tabs and Content */}
-        <Box sx={{ width: '100%', mb: 4 }}>
-          <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-            <Tabs value={activeTab} onChange={handleTabChange} aria-label="profile tabs">
-              <Tab label={`Active Listings (${userProfile.activeListings.length})`} />
-              <Tab label={`Sold Items (${userProfile.soldItems.length})`} />
-            </Tabs>
-          </Box>
+      <Divider sx={{ my: 3 }} />
 
-          {/* Active Listings Tab */}
-          {activeTab === 0 && (
-            <Grid container spacing={3}>
-              {userProfile.activeListings.map((item) => (
-                <Grid item xs={12} sm={6} md={4} key={item.id}>
-                  <Card sx={{ 
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    transition: 'transform 0.2s, box-shadow 0.2s',
-                    '&:hover': {
-                      transform: 'translateY(-4px)',
-                      boxShadow: 3
-                    }
-                  }}>
-                    <CardMedia
-                      component="img"
-                      height="200"
-                      image={Array.isArray(item.images) && item.images.length > 0 
-                        ? item.images[0] 
-                        : 'https://placehold.co/400x300'}
-                      alt={item.title}
-                      sx={{ objectFit: 'cover' }}
-                    />
-                    <CardContent sx={{ flexGrow: 1 }}>
-                      <Typography variant="h6" noWrap>
-                        {item.title}
-                      </Typography>
-                      <Typography variant="h6" color="primary" sx={{ mt: 1 }}>
-                        ${item.price.toFixed(2)}
-                      </Typography>
-                      <Typography 
-                        variant="body2" 
-                        color="text.secondary"
-                        sx={{
-                          display: '-webkit-box',
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical',
-                          overflow: 'hidden',
-                          mt: 1
-                        }}
-                      >
-                        {item.description}
-                      </Typography>
-                    </CardContent>
-                    <CardActions sx={{ p: 2, pt: 0 }}>
-                      <Button 
-                        fullWidth 
-                        variant="contained" 
-                        component={Link} 
-                        to={`/items/${item.id}`}
-                      >
-                        View Details
-                      </Button>
-                    </CardActions>
-                  </Card>
-                </Grid>
-              ))}
-            </Grid>
-          )}
+      {/* Tabs and Items Section */}
+      <Tabs
+        value={activeTab}
+        onChange={(e, newValue) => setActiveTab(newValue)}
+        sx={{ mb: 3 }}
+      >
+        <Tab label={`Active Listings (${data.activeListings.length})`} />
+        <Tab label={`Sold Items (${data.soldItems.length})`} />
+        <Tab label={`Purchases (${data.purchases.length})`} />
+      </Tabs>
 
-          {/* Sold Items Tab */}
-          {activeTab === 1 && (
-            <Grid container spacing={3}>
-              {userProfile.soldItems.map((item) => (
-                <Grid item xs={12} sm={6} md={4} key={item.id}>
-                  <Card sx={{ 
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    opacity: 0.8
-                  }}>
-                    <CardMedia
-                      component="img"
-                      height="200"
-                      image={Array.isArray(item.images) && item.images.length > 0 
-                        ? item.images[0] 
-                        : 'https://placehold.co/400x300'}
-                      alt={item.title}
-                      sx={{ objectFit: 'cover' }}
-                    />
-                    <CardContent sx={{ flexGrow: 1 }}>
-                      <Typography variant="h6" noWrap>
-                        {item.title}
-                      </Typography>
-                      <Typography variant="h6" color="success.main" sx={{ mt: 1 }}>
-                        Sold for ${item.price.toFixed(2)}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              ))}
-            </Grid>
-          )}
+      {data.loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+          <CircularProgress />
         </Box>
-
-        {/* Avatar Selection Dialog */}
-        <Dialog 
-          open={avatarDialogOpen} 
-          onClose={() => setAvatarDialogOpen(false)}
-          maxWidth="sm"
-          fullWidth
-        >
-          <DialogTitle>Choose an Avatar</DialogTitle>
-          <DialogContent>
-            <Grid container spacing={2} sx={{ mt: 1 }}>
-              {avatarOptions.map((avatar, index) => (
-                <Grid item xs={4} sm={3} key={index}>
-                  <Avatar
-                    src={avatar}
-                    sx={{
-                      width: 80,
-                      height: 80,
-                      cursor: 'pointer',
-                      margin: 'auto',
-                      border: currentUser?.avatar === avatar ? 2 : 0,
-                      borderColor: 'primary.main',
-                      '&:hover': {
-                        opacity: 0.8,
-                        transform: 'scale(1.05)',
-                        transition: 'all 0.2s'
-                      }
-                    }}
-                    onClick={() => handleAvatarSelect(avatar)}
-                  />
-                </Grid>
-              ))}
-            </Grid>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setAvatarDialogOpen(false)}>Cancel</Button>
-          </DialogActions>
-        </Dialog>
-      </Box>
+      ) : getCurrentItems().length === 0 ? (
+        <Alert severity="info">
+          No items to display
+        </Alert>
+      ) : (
+        <ItemGrid 
+          items={getCurrentItems()} 
+          type={activeTab === 1 ? 'sold' : activeTab === 2 ? 'purchased' : 'active'} 
+        />
+      )}
     </Container>
   );
 }
+
+// Create a reusable ItemGrid component
+function ItemGrid({ items, type }) {
+  return (
+    <Grid container spacing={3}>
+      {items.map((item) => (
+        <Grid item xs={12} sm={6} md={4} key={item.id}>
+          <Card sx={{ 
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            transition: 'transform 0.2s',
+            '&:hover': {
+              transform: 'translateY(-4px)'
+            }
+          }}>
+            <CardMedia
+              component="img"
+              height="200"
+              image={item.images?.[0] || 'https://via.placeholder.com/400x300'}
+              alt={item.title}
+              sx={{ objectFit: 'cover' }}
+            />
+            <CardContent sx={{ flexGrow: 1 }}>
+              <Typography variant="h6" noWrap>
+                {item.title}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                ${item.price?.toFixed(2)}
+              </Typography>
+              {type === 'sold' && (
+                <Chip 
+                  label="Sold" 
+                  color="success" 
+                  size="small" 
+                  sx={{ mt: 1 }} 
+                />
+              )}
+              {type === 'purchased' && (
+                <Chip 
+                  label="Purchased" 
+                  color="primary" 
+                  size="small" 
+                  sx={{ mt: 1 }} 
+                />
+              )}
+            </CardContent>
+            <CardActions>
+              <Button 
+                fullWidth 
+                variant="contained" 
+                component={Link} 
+                to={`/items/${item.id}`}
+              >
+                View Details
+              </Button>
+            </CardActions>
+          </Card>
+        </Grid>
+      ))}
+      {items.length === 0 && (
+        <Grid item xs={12}>
+          <Alert severity="info">
+            No items to display
+          </Alert>
+        </Grid>
+      )}
+    </Grid>
+  );
+}
+
+const fetchUserItems = async (token) => {
+  try {
+    const response = await axios.get(`${API_URL}/api/users/items`, {
+      headers: getAuthHeaders(token)
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching items:', error);
+    throw error;
+  }
+};
+
+const fetchUserPurchases = async (token) => {
+  try {
+    const response = await axios.get(`${API_URL}/api/users/purchases`, {
+      headers: getAuthHeaders(token)
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching purchases:', error);
+    throw error;
+  }
+};
 
 export default Profile; 

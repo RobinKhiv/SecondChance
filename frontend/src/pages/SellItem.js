@@ -1,237 +1,215 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { API_URL, getAuthHeaders } from '../config/api';
+import axios from 'axios';
 import {
   Container,
-  Grid as Grid2,
-  Typography,
-  Box,
   TextField,
   Button,
+  Grid,
+  Typography,
   Card,
-  CardContent,
+  CardMedia,
+  Box,
+  FormControl,
+  InputLabel,
+  Select,
   MenuItem,
-  InputAdornment
+  Alert,
+  Paper
 } from '@mui/material';
-import CloudUploadIcon from '@mui/icons-material/CloudUpload';
-import { useNavigate } from 'react-router-dom';
 
-const conditions = [
-  { value: 'new', label: 'New' },
-  { value: 'likeNew', label: 'Like New' },
-  { value: 'good', label: 'Good' },
-  { value: 'fair', label: 'Fair' },
-  { value: 'poor', label: 'Poor' }
+// Constants for categories and conditions
+const CATEGORIES = ['Electronics', 'Clothing', 'Books', 'Home', 'Sports', 'Other'];
+const CONDITIONS = ['New', 'Like New', 'Good', 'Fair', 'Poor'];
+
+const SAMPLE_IMAGES = [
+  "https://picsum.photos/400/300?random=1",
+  "https://picsum.photos/400/300?random=2",
+  "https://picsum.photos/400/300?random=3",
+  "https://picsum.photos/400/300?random=4"
 ];
 
 function SellItem() {
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({
-    title: '',
-    price: '',
-    condition: '',
-    location: '',
-    description: '',
-    image: null
-  });
-  const [imagePreview, setImagePreview] = useState(null);
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setFormData(prev => ({
-        ...prev,
-        image: file
-      }));
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+  const { token } = useAuth();
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [price, setPrice] = useState('');
+  const [category, setCategory] = useState('');
+  const [condition, setCondition] = useState('');
+  const [selectedImage, setSelectedImage] = useState(SAMPLE_IMAGES[0]);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    if (!category) {
+      setError('Please select a category');
+      setLoading(false);
+      return;
+    }
+
+    if (!condition) {
+      setError('Please select the item condition');
+      setLoading(false);
+      return;
+    }
+
     try {
-      const response = await fetch('http://localhost:5001/api/items', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          title: formData.title,
-          description: formData.description,
-          price: parseFloat(formData.price),
-          images: [/* your image URLs */]
-        })
+      const response = await axios.post(`${API_URL}/api/items`, {
+        title,
+        description,
+        price: parseFloat(price),
+        category,
+        condition,
+        images: [selectedImage]
+      }, {
+        headers: getAuthHeaders(token)
       });
 
-      if (!response.ok) throw new Error('Failed to create item');
-
-      const data = await response.json();
-      // Redirect to the new item page
-      navigate(`/items/${data.id}`);
+      navigate('/profile');
     } catch (error) {
       console.error('Error creating item:', error);
-      // Show error message to user
+      setError(error.response?.data?.error || 'Failed to create item');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
-      <Typography variant="h4" component="h1" gutterBottom sx={{ mb: 4 }}>
-        Sell an Item
-      </Typography>
+    <Container maxWidth="md" sx={{ mt: 4 }}>
+      <Paper sx={{ p: 3 }}>
+        <Typography variant="h4" gutterBottom>
+          Sell an Item
+        </Typography>
 
-      <form onSubmit={handleSubmit}>
-        <Grid2 container spacing={4}>
-          {/* Left Column - Image Upload */}
-          <Grid2 item xs={12} md={4}>
-            <Card sx={{ mb: 2 }}>
-              <CardContent>
-                <Box
-                  sx={{
-                    border: '2px dashed #ccc',
-                    borderRadius: 1,
-                    p: 2,
-                    textAlign: 'center',
-                    cursor: 'pointer',
-                    '&:hover': {
-                      borderColor: 'primary.main'
-                    }
-                  }}
-                  component="label"
+        <form onSubmit={handleSubmit}>
+          <Grid container spacing={3}>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                required
+              />
+            </Grid>
+
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                multiline
+                rows={4}
+                required
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Price"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                type="number"
+                InputProps={{
+                  startAdornment: '$'
+                }}
+                required
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth required>
+                <InputLabel>Category</InputLabel>
+                <Select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  label="Category"
                 >
-                  <input
-                    type="file"
-                    accept="image/*"
-                    hidden
-                    onChange={handleImageChange}
-                  />
-                  {imagePreview ? (
-                    <Box
-                      component="img"
-                      src={imagePreview}
-                      alt="Preview"
+                  {CATEGORIES.map(cat => (
+                    <MenuItem key={cat} value={cat}>
+                      {cat}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+
+            <Grid item xs={12}>
+              <FormControl fullWidth required>
+                <InputLabel>Condition</InputLabel>
+                <Select
+                  value={condition}
+                  onChange={(e) => setCondition(e.target.value)}
+                  label="Condition"
+                >
+                  {CONDITIONS.map(cond => (
+                    <MenuItem key={cond} value={cond}>
+                      {cond}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+
+            <Grid item xs={12}>
+              <Typography variant="h6" sx={{ mb: 2 }}>
+                Select an Image
+              </Typography>
+              <Grid container spacing={2}>
+                {SAMPLE_IMAGES.map((image, index) => (
+                  <Grid item xs={6} sm={3} key={index}>
+                    <Card 
+                      onClick={() => setSelectedImage(image)}
                       sx={{
-                        width: '100%',
-                        height: 200,
-                        objectFit: 'cover',
-                        borderRadius: 1
+                        cursor: 'pointer',
+                        border: selectedImage === image ? '2px solid #1976d2' : 'none'
                       }}
-                    />
-                  ) : (
-                    <Box sx={{ py: 5 }}>
-                      <CloudUploadIcon sx={{ fontSize: 48, color: 'text.secondary' }} />
-                      <Typography color="text.secondary">
-                        Click to upload image
-                      </Typography>
-                    </Box>
-                  )}
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid2>
-
-          {/* Right Column - Form Fields */}
-          <Grid2 item xs={12} md={8}>
-            <Card>
-              <CardContent>
-                <Grid2 container spacing={3}>
-                  <Grid2 item xs={12}>
-                    <TextField
-                      fullWidth
-                      label="Title"
-                      name="title"
-                      value={formData.title}
-                      onChange={handleChange}
-                      required
-                    />
-                  </Grid2>
-
-                  <Grid2 item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="Price"
-                      name="price"
-                      type="number"
-                      value={formData.price}
-                      onChange={handleChange}
-                      required
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">$</InputAdornment>
-                        )
-                      }}
-                    />
-                  </Grid2>
-
-                  <Grid2 item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      select
-                      label="Condition"
-                      name="condition"
-                      value={formData.condition}
-                      onChange={handleChange}
-                      required
                     >
-                      {conditions.map((option) => (
-                        <MenuItem key={option.value} value={option.value}>
-                          {option.label}
-                        </MenuItem>
-                      ))}
-                    </TextField>
-                  </Grid2>
+                      <CardMedia
+                        component="img"
+                        height="140"
+                        image={image}
+                        alt={`Sample ${index + 1}`}
+                      />
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+            </Grid>
 
-                  <Grid2 item xs={12}>
-                    <TextField
-                      fullWidth
-                      label="Location"
-                      name="location"
-                      value={formData.location}
-                      onChange={handleChange}
-                      required
-                    />
-                  </Grid2>
+            {error && (
+              <Grid item xs={12}>
+                <Alert severity="error">
+                  {error}
+                </Alert>
+              </Grid>
+            )}
 
-                  <Grid2 item xs={12}>
-                    <TextField
-                      fullWidth
-                      multiline
-                      rows={4}
-                      label="Description"
-                      name="description"
-                      value={formData.description}
-                      onChange={handleChange}
-                      required
-                    />
-                  </Grid2>
-
-                  <Grid2 item xs={12}>
-                    <Button
-                      type="submit"
-                      variant="contained"
-                      size="large"
-                      fullWidth
-                    >
-                      List Item
-                    </Button>
-                  </Grid2>
-                </Grid2>
-              </CardContent>
-            </Card>
-          </Grid2>
-        </Grid2>
-      </form>
+            <Grid item xs={12}>
+              <Box sx={{ mt: 2 }}>
+                <Button
+                  type="submit"
+                  variant="contained"
+                  disabled={loading}
+                  fullWidth
+                  size="large"
+                >
+                  {loading ? 'Creating...' : 'Create Listing'}
+                </Button>
+              </Box>
+            </Grid>
+          </Grid>
+        </form>
+      </Paper>
     </Container>
   );
 }

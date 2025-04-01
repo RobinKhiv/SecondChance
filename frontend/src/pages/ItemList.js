@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import axios from 'axios';
+import { API_URL } from '../config/api';
 import {
   Box,
   Grid,
@@ -19,7 +21,11 @@ import {
   Paper,
   CardActionArea,
   CircularProgress,
-  Alert
+  Alert,
+  CardMedia,
+  Chip,
+  ToggleButtonGroup,
+  ToggleButton
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -27,75 +33,77 @@ import {
 } from '@mui/icons-material';
 import UserAvatar from '../components/UserAvatar';
 
-const conditions = ['All', 'Excellent', 'Good', 'Fair'];
-const categories = ['All', 'Clothing', 'Electronics', 'Furniture'];
-const sortOptions = [
-  { value: 'newest', label: 'Newest First' },
-  { value: 'oldest', label: 'Oldest First' },
-  { value: 'priceAsc', label: 'Price: Low to High' },
-  { value: 'priceDesc', label: 'Price: High to Low' },
-];
+const CONDITIONS = ['New', 'Like New', 'Good', 'Fair', 'Poor'];
+const CATEGORIES = ['Electronics', 'Clothing', 'Books', 'Home', 'Sports', 'Other'];
 
 function ItemList() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCondition, setSelectedCondition] = useState('All');
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const [sortBy, setSortBy] = useState('newest');
+  const [availability, setAvailability] = useState('available');
   const [showFilters, setShowFilters] = useState(false);
+  const [sortBy, setSortBy] = useState('newest');
+  const [selectedCondition, setSelectedCondition] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
   const [priceRange, setPriceRange] = useState([0, 1000]);
 
-  useEffect(() => {
-    fetchItems();
-  }, []);
-
-  const fetchItems = async () => {
+  const fetchItems = useCallback(async () => {
     try {
-      const response = await fetch('http://localhost:5001/api/items');
-      const data = await response.json();
-      setItems(data);
-      if (data.length > 0) {
-        const maxPrice = Math.max(...data.map(item => item.price));
+      const response = await axios.get(`${API_URL}/api/items`);
+      const parsedItems = response.data.map(item => ({
+        ...item,
+        images: typeof item.images === 'string' ? JSON.parse(item.images) : item.images
+      }));
+      setItems(parsedItems);
+      
+      // Update price range based on actual items
+      if (parsedItems.length > 0) {
+        const prices = parsedItems.map(item => item.price);
+        const maxPrice = Math.ceil(Math.max(...prices));
         setPriceRange([0, maxPrice]);
       }
     } catch (error) {
-      setError('Failed to fetch items');
-      console.error('Error:', error);
+      console.error('Error fetching items:', error);
+      setError('Failed to load items');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const handlePriceRangeChange = (event, newValue) => {
-    setPriceRange(newValue);
-  };
+  useEffect(() => {
+    fetchItems();
+  }, [fetchItems]);
 
   const resetFilters = () => {
     setSearchTerm('');
-    setSelectedCondition('All');
-    setSelectedCategory('All');
+    setAvailability('all');
     setSortBy('newest');
-    setPriceRange([0, Math.max(...items.map(item => item.price))]);
+    setSelectedCondition('');
+    setSelectedCategory('');
+    setPriceRange([0, 1000]);
   };
 
   const filteredAndSortedItems = items
     .filter(item => {
-      const matchesSearch = item.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          item.description?.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCondition = selectedCondition === 'All' || item.condition === selectedCondition;
-      const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
+      const matchesSearch = (item.title?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                          (item.description?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+      const matchesAvailability = availability === 'all' ? true :
+                                 availability === 'available' ? !item.buyer_id :
+                                 item.buyer_id;
+      const matchesCondition = !selectedCondition || item.condition === selectedCondition;
+      const matchesCategory = !selectedCategory || item.category === selectedCategory;
       const matchesPrice = item.price >= priceRange[0] && item.price <= priceRange[1];
-      
-      return matchesSearch && matchesCondition && matchesCategory && matchesPrice;
+
+      return matchesSearch && matchesAvailability && matchesCondition && 
+             matchesCategory && matchesPrice;
     })
     .sort((a, b) => {
       switch (sortBy) {
         case 'newest':
-          return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+          return new Date(b.created_at) - new Date(a.created_at);
         case 'oldest':
-          return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+          return new Date(a.created_at) - new Date(b.created_at);
         case 'priceAsc':
           return a.price - b.price;
         case 'priceDesc':
@@ -107,204 +115,192 @@ function ItemList() {
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+      <Container sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
         <CircularProgress />
-      </Box>
+      </Container>
+    );
+  }
+
+  if (error) {
+    return (
+      <Container sx={{ mt: 4 }}>
+        <Alert severity="error">{error}</Alert>
+      </Container>
     );
   }
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
-      <Typography variant="h4" component="h1" gutterBottom sx={{ mb: 4 }}>
-        Available Items
-      </Typography>
+    <Container maxWidth="lg" sx={{ mt: 4 }}>
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="h4" gutterBottom>
+            Marketplace Items
+          </Typography>
+          
+          {/* Search and Basic Filters */}
+          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+            <TextField
+              placeholder="Search items..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              sx={{ flexGrow: 1 }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+              }}
+            />
+            <Button
+              startIcon={<FilterListIcon />}
+              onClick={() => setShowFilters(!showFilters)}
+              variant={showFilters ? "contained" : "outlined"}
+            >
+              Filters
+            </Button>
+          </Box>
 
-      {/* Search and Filters */}
-      <Paper sx={{ mb: 4, p: 2 }}>
-        <Box sx={{ mb: 2 }}>
-          <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                variant="outlined"
-                placeholder="Search items..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon />
-                    </InputAdornment>
-                  )
-                }}
-              />
-            </Grid>
+          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+            <ToggleButtonGroup
+              value={availability}
+              exclusive
+              onChange={(e, newValue) => setAvailability(newValue || 'all')}
+              aria-label="item availability"
+            >
+              <ToggleButton value="all">
+                All ({items.length})
+              </ToggleButton>
+              <ToggleButton value="available">
+                Available ({items.filter(item => !item.buyer_id).length})
+              </ToggleButton>
+              <ToggleButton value="sold">
+                Sold ({items.filter(item => item.buyer_id).length})
+              </ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
 
-            <Grid item xs={12} md={3}>
-              <FormControl fullWidth>
-                <InputLabel>Sort By</InputLabel>
-                <Select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  label="Sort By"
-                >
-                  {sortOptions.map(option => (
-                    <MenuItem key={option.value} value={option.value}>
-                      {option.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
+          {/* Advanced Filters */}
+          <Collapse in={showFilters}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6} md={3}>
+                  <FormControl fullWidth>
+                    <InputLabel>Sort By</InputLabel>
+                    <Select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value)}
+                      label="Sort By"
+                    >
+                      <MenuItem value="newest">Newest First</MenuItem>
+                      <MenuItem value="oldest">Oldest First</MenuItem>
+                      <MenuItem value="priceAsc">Price: Low to High</MenuItem>
+                      <MenuItem value="priceDesc">Price: High to Low</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <FormControl fullWidth>
+                    <InputLabel>Condition</InputLabel>
+                    <Select
+                      value={selectedCondition}
+                      onChange={(e) => setSelectedCondition(e.target.value)}
+                      label="Condition"
+                    >
+                      <MenuItem value="">Any</MenuItem>
+                      {CONDITIONS.map(condition => (
+                        <MenuItem key={condition} value={condition}>
+                          {condition}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <FormControl fullWidth>
+                    <InputLabel>Category</InputLabel>
+                    <Select
+                      value={selectedCategory}
+                      onChange={(e) => setSelectedCategory(e.target.value)}
+                      label="Category"
+                    >
+                      <MenuItem value="">Any</MenuItem>
+                      {CATEGORIES.map(category => (
+                        <MenuItem key={category} value={category}>
+                          {category}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+              </Grid>
 
-            <Grid item xs={12} md={3}>
-              <Button
-                fullWidth
-                variant="outlined"
-                startIcon={<FilterListIcon />}
-                onClick={() => setShowFilters(!showFilters)}
-              >
-                Filters
-              </Button>
-            </Grid>
-          </Grid>
-        </Box>
-
-        <Collapse in={showFilters}>
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={4}>
-              <FormControl fullWidth>
-                <InputLabel>Condition</InputLabel>
-                <Select
-                  value={selectedCondition}
-                  onChange={(e) => setSelectedCondition(e.target.value)}
-                  label="Condition"
-                >
-                  {conditions.map(condition => (
-                    <MenuItem key={condition} value={condition}>
-                      {condition}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-
-            <Grid item xs={12} md={4}>
-              <FormControl fullWidth>
-                <InputLabel>Category</InputLabel>
-                <Select
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  label="Category"
-                >
-                  {categories.map(category => (
-                    <MenuItem key={category} value={category}>
-                      {category}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-
-            <Grid item xs={12}>
-              <Typography gutterBottom>Price Range</Typography>
               <Box sx={{ px: 2 }}>
+                <Typography gutterBottom>Price Range</Typography>
                 <Slider
                   value={priceRange}
-                  onChange={handlePriceRangeChange}
+                  onChange={(e, newValue) => setPriceRange(newValue)}
                   valueLabelDisplay="auto"
                   min={0}
-                  max={Math.max(...items.map(item => item.price))}
-                  valueLabelFormat={(value) => `$${value}`}
+                  max={Math.max(...items.map(item => item.price), 1000)}
+                  valueLabelFormat={value => `$${value}`}
                 />
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
-                  <Typography variant="body2">${priceRange[0]}</Typography>
-                  <Typography variant="body2">${priceRange[1]}</Typography>
-                </Box>
               </Box>
-            </Grid>
 
-            <Grid item xs={12}>
-              <Button variant="outlined" onClick={resetFilters}>
-                Reset Filters
-              </Button>
-            </Grid>
-          </Grid>
-        </Collapse>
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <Button onClick={resetFilters}>
+                  Reset Filters
+                </Button>
+              </Box>
+            </Box>
+          </Collapse>
+        </Box>
       </Paper>
 
-      {/* Items Grid */}
-      <Grid container spacing={3}>
-        {filteredAndSortedItems.map(item => (
-          <Grid item xs={12} sm={6} md={4} key={item.id}>
-            <Card sx={{ 
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              '&:hover': {
-                transform: 'translateY(-4px)',
-                boxShadow: 4,
-                transition: 'transform 0.2s ease-in-out'
-              }
-            }}>
-              <CardActionArea component={Link} to={`/items/${item.id}`} sx={{ flexGrow: 1 }}>
-                <Box sx={{ pt: '60%', position: 'relative', overflow: 'hidden' }}>
-                  <img
-                    src={item.images?.[0] || 'https://picsum.photos/400/300?blur=2'}
+      {filteredAndSortedItems.length === 0 ? (
+        <Alert severity="info">No items found matching your criteria</Alert>
+      ) : (
+        <Grid container spacing={3}>
+          {filteredAndSortedItems.map((item) => (
+            <Grid item xs={12} sm={6} md={4} key={item.id}>
+              <Card>
+                <CardActionArea component={Link} to={`/items/${item.id}`}>
+                  <CardMedia
+                    component="img"
+                    height="200"
+                    image={item.images?.[0] || 'https://via.placeholder.com/400x300'}
                     alt={item.title}
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover'
-                    }}
+                    sx={{ objectFit: 'cover' }}
                   />
-                </Box>
-                <CardContent>
-                  <Typography variant="h6" component="h2" noWrap>
-                    {item.title}
-                  </Typography>
-                  <Typography variant="h6" color="primary" sx={{ fontWeight: 'bold', my: 1 }}>
-                    ${item.price.toFixed(2)}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    display: '-webkit-box',
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: 'vertical',
-                    mb: 2
-                  }}>
-                    {item.description}
-                  </Typography>
-                  <Box sx={{ 
-                    display: 'flex', 
-                    alignItems: 'center',
-                    borderTop: 1,
-                    borderColor: 'divider',
-                    pt: 2
-                  }}>
-                    <UserAvatar 
-                      src={item.seller_avatar}
-                      alt={item.seller_email}
-                      size={32}
-                    />
-                    <Typography variant="body2" sx={{ ml: 1 }} color="text.secondary">
-                      {item.seller_email}
+                  <CardContent>
+                    <Typography variant="h6" noWrap>
+                      {item.title}
                     </Typography>
-                  </Box>
-                </CardContent>
-              </CardActionArea>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      ${item.price?.toFixed(2)}
+                    </Typography>
+                    {item.condition && (
+                      <Chip 
+                        label={item.condition} 
+                        size="small" 
+                        sx={{ mr: 1 }} 
+                      />
+                    )}
+                    {item.buyer_id && (
+                      <Chip 
+                        label="Sold" 
+                        color="error" 
+                        size="small" 
+                        sx={{ mt: 1 }} 
+                      />
+                    )}
+                  </CardContent>
+                </CardActionArea>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      )}
     </Container>
   );
 }
