@@ -399,22 +399,36 @@ app.get('/api/users/profile', authenticateToken, async (req, res) => {
 // Update profile endpoint
 app.put('/api/users/profile', authenticateToken, async (req, res) => {
   try {
+    console.log('Updating profile for user:', req.user.id);
+    console.log('Update data:', req.body);
+
     const { avatar } = req.body;
     
+    if (!avatar) {
+      return res.status(400).json({ error: 'Avatar URL is required' });
+    }
+
+    // Update the user's avatar
     await runAsync(
       'UPDATE users SET avatar = ? WHERE id = ?',
       [avatar, req.user.id]
     );
 
+    // Get the updated user data
     const updatedUser = await getAsync(
       'SELECT id, email, avatar, created_at FROM users WHERE id = ?',
       [req.user.id]
     );
     
+    if (!updatedUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    console.log('Profile updated successfully:', updatedUser);
     res.json(updatedUser);
   } catch (error) {
     console.error('Update profile error:', error);
-    res.status(500).json({ error: 'Failed to update profile' });
+    res.status(500).json({ error: 'Failed to update profile: ' + error.message });
   }
 });
 

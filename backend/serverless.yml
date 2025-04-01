@@ -70,4 +70,8 @@ functions:
           path: /api/items/{id}/purchase
           method: POST
           cors: true
+      - http:
+          path: /api/users/profile
+          method: PUT
+          cors: true
       # Add other routes as needed 
