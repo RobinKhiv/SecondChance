@@ -1,0 +1,28 @@
+service: secondchance-api
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  stage: dev
+  profile: secondchance
+
+plugins:
+  - serverless-offline
+
+functions:
+  api:
+    handler: lambda.handler
+    events:
+      - http:
+          path: /api/{proxy+}
+          method: ANY
+          cors: true
+      - http:
+          path: /{proxy+}
+          method: ANY
+          cors: true
+
+custom:
+  serverless-offline:
+    httpPort: 5001
+    noPrependStageInUrl: true 
