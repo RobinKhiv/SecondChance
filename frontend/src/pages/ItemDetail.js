@@ -1,121 +1,178 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import {
+import { 
+  Card, 
+  CardContent, 
+  Typography, 
+  Box, 
+  CircularProgress,
   Container,
-  Grid as Grid2,
-  Card,
-  CardMedia,
-  Typography,
-  Box,
-  Button,
-  Divider,
   Paper,
-  Chip
+  Divider
 } from '@mui/material';
-import PersonIcon from '@mui/icons-material/Person';
-import LocationOnIcon from '@mui/icons-material/LocationOn';
-import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import UserAvatar from '../components/UserAvatar';
 
 function ItemDetail() {
   const { id } = useParams();
   const [item, setItem] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    // TODO: Replace with actual API call
-    setItem({
-      id,
-      title: 'Used Laptop',
-      price: 499.99,
-      image: 'https://placeholder.com/800',
-      description: 'Slightly used laptop in good condition. Comes with charger and original packaging. 8GB RAM, 256GB SSD, Intel i5 processor.',
-      condition: 'Good',
-      location: 'New York, NY',
-      seller: {
-        name: 'John Doe',
-        rating: 4.5,
-        joinDate: '2023-01-15'
+    const fetchItem = async () => {
+      try {
+        const response = await fetch(`http://localhost:5001/api/items/${id}`);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        setItem(data);
+      } catch (error) {
+        console.error('Error fetching item:', error);
+        setError(error.message);
+      } finally {
+        setLoading(false);
       }
-    });
+    };
+
+    fetchItem();
   }, [id]);
 
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Container maxWidth="md" sx={{ mt: 4 }}>
+        <Paper sx={{ p: 3, textAlign: 'center', bgcolor: '#fff4f4' }}>
+          <Typography color="error">Error: {error}</Typography>
+        </Paper>
+      </Container>
+    );
+  }
+
   if (!item) {
-    return <Box sx={{ p: 4, textAlign: 'center' }}>Loading...</Box>;
+    return (
+      <Container maxWidth="md" sx={{ mt: 4 }}>
+        <Paper sx={{ p: 3, textAlign: 'center' }}>
+          <Typography>Item not found</Typography>
+        </Paper>
+      </Container>
+    );
   }
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Grid2 container spacing={4}>
-        {/* Left side - Image */}
-        <Grid2 item xs={12} md={7}>
-          <Card>
-            <CardMedia
-              component="img"
-              height="500"
-              image={item.image}
-              alt={item.title}
-              sx={{ objectFit: 'cover' }}
-            />
-          </Card>
-        </Grid2>
-
-        {/* Right side - Details */}
-        <Grid2 item xs={12} md={5}>
-          <Box>
-            <Typography variant="h4" component="h1" gutterBottom>
+    <Container maxWidth="md" sx={{ py: 4 }}>
+      <Card sx={{ 
+        boxShadow: 3,
+        borderRadius: 2,
+        overflow: 'hidden',
+        bgcolor: 'background.paper'
+      }}>
+        <CardContent sx={{ p: 4 }}>
+          {/* Title and Price Section */}
+          <Box sx={{ mb: 3 }}>
+            <Typography 
+              variant="h4" 
+              component="h1" 
+              gutterBottom
+              sx={{ 
+                fontWeight: 'medium',
+                color: 'text.primary'
+              }}
+            >
               {item.title}
             </Typography>
-            
-            <Typography variant="h3" color="primary" gutterBottom>
-              ${item.price}
-            </Typography>
-
-            <Button 
-              variant="contained" 
-              size="large" 
-              fullWidth 
-              sx={{ mt: 2, mb: 4 }}
+            <Typography 
+              variant="h5" 
+              sx={{ 
+                color: 'primary.main',
+                fontWeight: 'bold'
+              }}
             >
-              Contact Seller
-            </Button>
+              ${item.price.toFixed(2)}
+            </Typography>
+          </Box>
 
-            <Divider sx={{ my: 3 }} />
+          <Divider sx={{ my: 3 }} />
 
-            <Typography variant="h6" gutterBottom>Description</Typography>
-            <Typography variant="body1" paragraph>
+          {/* Description Section */}
+          <Box sx={{ mb: 4 }}>
+            <Typography 
+              variant="h6" 
+              gutterBottom
+              sx={{ color: 'text.secondary' }}
+            >
+              Description
+            </Typography>
+            <Typography 
+              variant="body1" 
+              sx={{ 
+                color: 'text.primary',
+                lineHeight: 1.7
+              }}
+            >
               {item.description}
             </Typography>
-
-            <Box sx={{ mt: 3 }}>
-              <Chip 
-                label={`Condition: ${item.condition}`} 
-                sx={{ mr: 1, mb: 1 }}
-              />
-              <Chip 
-                icon={<LocationOnIcon />} 
-                label={item.location}
-                sx={{ mb: 1 }}
-              />
-            </Box>
-
-            <Divider sx={{ my: 3 }} />
-
-            {/* Seller Information */}
-            <Paper sx={{ p: 2, mt: 2 }}>
-              <Typography variant="h6" gutterBottom>
-                Seller Information
-              </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                <PersonIcon sx={{ mr: 1 }} />
-                <Typography>{item.seller.name}</Typography>
-              </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <CalendarTodayIcon sx={{ mr: 1 }} />
-                <Typography>Member since {new Date(item.seller.joinDate).toLocaleDateString()}</Typography>
-              </Box>
-            </Paper>
           </Box>
-        </Grid2>
-      </Grid2>
+
+          <Divider sx={{ my: 3 }} />
+
+          {/* Seller Information */}
+          <Paper 
+            elevation={0} 
+            sx={{ 
+              p: 3,
+              bgcolor: 'grey.50',
+              borderRadius: 2
+            }}
+          >
+            <Typography 
+              variant="h6" 
+              gutterBottom
+              sx={{ color: 'text.secondary', mb: 2 }}
+            >
+              Seller Information
+            </Typography>
+            <Box sx={{ 
+              display: 'flex', 
+              alignItems: 'center'
+            }}>
+              <UserAvatar 
+                src={item.seller_avatar}
+                alt={item.seller_email}
+                size={48}
+                sx={{ 
+                  border: 2,
+                  borderColor: 'background.paper'
+                }}
+              />
+              <Box sx={{ ml: 2 }}>
+                <Typography 
+                  variant="subtitle1"
+                  sx={{ 
+                    fontWeight: 'medium',
+                    color: 'text.primary'
+                  }}
+                >
+                  {item.seller_email}
+                </Typography>
+                <Typography 
+                  variant="body2" 
+                  sx={{ color: 'text.secondary' }}
+                >
+                  Verified Seller
+                </Typography>
+              </Box>
+            </Box>
+          </Paper>
+        </CardContent>
+      </Card>
     </Container>
   );
 }

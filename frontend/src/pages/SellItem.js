@@ -57,12 +57,32 @@ function SellItem() {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // TODO: Implement API call to create listing
-    console.log('Form submitted:', formData);
-    // Navigate to items list after successful submission
-    navigate('/items');
+    try {
+      const response = await fetch('http://localhost:5001/api/items', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          title: formData.title,
+          description: formData.description,
+          price: parseFloat(formData.price),
+          images: [/* your image URLs */]
+        })
+      });
+
+      if (!response.ok) throw new Error('Failed to create item');
+
+      const data = await response.json();
+      // Redirect to the new item page
+      navigate(`/items/${data.id}`);
+    } catch (error) {
+      console.error('Error creating item:', error);
+      // Show error message to user
+    }
   };
 
   return (
