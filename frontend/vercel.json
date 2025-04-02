@@ -4,7 +4,10 @@
     {
       "src": "package.json",
       "use": "@vercel/static-build",
-      "config": { "distDir": "build" }
+      "config": { 
+        "distDir": "build",
+        "buildCommand": "CI=false npm run build"
+      }
     }
   ],
   "routes": [
@@ -24,5 +27,9 @@
       "src": "/(.*)",
       "dest": "/index.html"
     }
-  ]
+  ],
+  "env": {
+    "CI": "false",
+    "REACT_APP_API_URL": "https://api.secondchance.robinkhiv.com"
+  }
 } 
