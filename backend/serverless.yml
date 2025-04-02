@@ -1,30 +1,33 @@
 service: secondchance
 
+plugins:
+  - serverless-offline
+  - serverless-dotenv-plugin
+
+custom:
+  dotenv:
+    path: .env
+    include:
+      - SUPABASE_URL
+      - SUPABASE_ANON_KEY
+      - JWT_SECRET
+      - FRONTEND_URL
+  serverless-offline:
+    cacheInvalidation: true
+    noPrependStageInUrl: true
+    httpPort: 5001
+    useChildProcesses: true
+
 provider:
   name: aws
   runtime: nodejs18.x
   stage: dev
   region: us-east-1
-
-plugins:
-  - serverless-offline
-
-custom:
-  serverless-offline:
-    httpPort: 5001
-    host: localhost
-    websocket: true
-    noPrependStageInUrl: true
-    corsConfig:
-      origin: '*'
-      headers:
-        - Content-Type
-        - Authorization
-        - X-Amz-Date
-        - X-Api-Key
-        - X-Amz-Security-Token
-        - X-Amz-User-Agent
-      credentials: true
+  environment:
+    SUPABASE_URL: ${env:SUPABASE_URL}
+    SUPABASE_ANON_KEY: ${env:SUPABASE_ANON_KEY}
+    JWT_SECRET: ${env:JWT_SECRET}
+    FRONTEND_URL: ${env:FRONTEND_URL}
 
 functions:
   api:
@@ -34,44 +37,5 @@ functions:
           path: /api/{proxy+}
           method: ANY
           cors: true
-      - http:
-          path: /api/auth/login
-          method: POST
-          cors: true
-      - http:
-          path: /api/auth/register
-          method: POST
-          cors: true
-      - http:
-          path: /api/users/profile
-          method: GET
-          cors: true
-      - http:
-          path: /api/users/items
-          method: GET
-          cors: true
-      - http:
-          path: /api/users/purchases
-          method: GET
-          cors: true
-      - http:
-          path: /api/items
-          method: GET
-          cors: true
-      - http:
-          path: /api/items/{id}
-          method: GET
-          cors: true
-      - http:
-          path: /api/items
-          method: POST
-          cors: true
-      - http:
-          path: /api/items/{id}/purchase
-          method: POST
-          cors: true
-      - http:
-          path: /api/users/profile
-          method: PUT
-          cors: true
-      # Add other routes as needed 
+
+  # Add other routes as needed 
