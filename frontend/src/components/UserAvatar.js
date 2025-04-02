@@ -1,12 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { Avatar as MUIAvatar, Skeleton } from '@mui/material';
 
-const UserAvatar = ({ src, alt, size = 40, ...props }) => {
+const UserAvatar = memo(({ user, src, alt, size = 40, ...props }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [avatarSrc, setAvatarSrc] = useState(src || user?.avatar);
+
+  useEffect(() => {
+    setAvatarSrc(src || user?.avatar);
+  }, [src, user?.avatar]);
 
   // Add console logs to debug
-  console.log('Avatar src:', src);
+  console.log('Avatar src:', avatarSrc);
   console.log('Avatar loading:', loading);
   console.log('Avatar error:', error);
 
@@ -21,13 +26,13 @@ const UserAvatar = ({ src, alt, size = 40, ...props }) => {
     setError(true);
   };
 
-  if (!src) {
+  if (!avatarSrc) {
     return (
       <MUIAvatar
         {...props}
         sx={{ width: size, height: size, ...props.sx }}
       >
-        {alt?.charAt(0).toUpperCase()}
+        {alt?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase()}
       </MUIAvatar>
     );
   }
@@ -36,8 +41,8 @@ const UserAvatar = ({ src, alt, size = 40, ...props }) => {
     <>
       {loading && <Skeleton variant="circular" width={size} height={size} />}
       <MUIAvatar
-        src={src}
-        alt={alt}
+        src={avatarSrc}
+        alt={alt || user?.email}
         {...props}
         sx={{ 
           width: size, 
@@ -50,6 +55,8 @@ const UserAvatar = ({ src, alt, size = 40, ...props }) => {
       />
     </>
   );
-};
+});
+
+UserAvatar.displayName = 'UserAvatar';
 
 export default UserAvatar; 

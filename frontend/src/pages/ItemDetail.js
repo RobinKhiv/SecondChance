@@ -5,7 +5,6 @@ import axios from 'axios';
 import { API_URL, getAuthHeaders } from '../config/api';
 import {
   Container,
-  Paper,
   Typography,
   Button,
   Box,
@@ -22,7 +21,6 @@ import {
   Grid,
   Divider
 } from '@mui/material';
-import UserAvatar from '../components/UserAvatar';
 
 function ItemDetail() {
   const { id } = useParams();
@@ -41,6 +39,7 @@ function ItemDetail() {
       if (typeof itemData.images === 'string') {
         itemData.images = JSON.parse(itemData.images);
       }
+      console.log('Fetched item:', itemData);
       setItem(itemData);
     } catch (error) {
       console.error('Error fetching item:', error);
@@ -152,8 +151,8 @@ function ItemDetail() {
             <Grid container alignItems="center" spacing={2}>
               <Grid item>
                 <Avatar 
-                  src={item.seller_avatar} 
-                  alt={item.seller_email}
+                  src={item.seller.avatar} 
+                  alt={item.seller.email}
                   sx={{ width: 56, height: 56 }}
                 />
               </Grid>
@@ -162,7 +161,7 @@ function ItemDetail() {
                   Seller Information
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  {item.seller_email}
+                  {item.seller.email}
                 </Typography>
               </Grid>
             </Grid>

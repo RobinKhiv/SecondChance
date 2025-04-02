@@ -19,12 +19,13 @@ const ItemCard = ({ item }) => {
     return null;
   }
 
-  // Handle the images array directly since it's already an array
-  const firstImage = item.images && item.images.length > 0 
-    ? item.images[0] 
-    : '/placeholder.png';
+  // Parse the images string if it's a string
+  const images = typeof item.images === 'string' ? JSON.parse(item.images) : item.images;
+  
+  // Get the first image or use a fallback
+  const imageUrl = (images && images.length > 0) ? images[0] : 'https://via.placeholder.com/300';
 
-  console.log('Using image:', firstImage); // Debug log
+  console.log('Using image:', imageUrl); // Debug log
 
   return (
     <Card sx={{ 
@@ -38,9 +39,12 @@ const ItemCard = ({ item }) => {
         <CardMedia
           component="img"
           height="200"
-          image={firstImage}
+          image={imageUrl}
           alt={item.title}
-          sx={{ objectFit: 'cover' }}
+          onError={(e) => {
+            e.target.src = 'https://via.placeholder.com/300';
+            e.target.onerror = null;
+          }}
         />
         <CardContent>
           <Typography gutterBottom variant="h6" component="div">

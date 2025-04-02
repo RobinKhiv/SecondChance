@@ -55,6 +55,7 @@ function ItemList() {
         ...item,
         images: typeof item.images === 'string' ? JSON.parse(item.images) : item.images
       }));
+      console.log('Parsed items:', parsedItems);
       setItems(parsedItems);
       
       // Update price range based on actual items
@@ -286,6 +287,20 @@ function ItemList() {
                         sx={{ mr: 1 }} 
                       />
                     )}
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1,mt:1}}>
+                      {item.seller && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', mr: 1 }}>
+                          <UserAvatar 
+                            user={item.seller}
+                            src={item.seller.avatar}
+                            sx={{ width: 24, height: 24, mr: 1 }} 
+                          />
+                          <Typography variant="body2" color="text.secondary">
+                            {item.seller.email}
+                          </Typography>
+                        </Box>
+                      )}
+                    </Box>
                     {item.buyer_id && (
                       <Chip 
                         label="Sold" 

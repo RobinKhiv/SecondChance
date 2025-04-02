@@ -85,32 +85,33 @@ const Profile = () => {
 
   const fetchUserItems = async () => {
     try {
-      const response = await axios.get(`${API_URL}/api/users/items`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+      const response = await axios.get(`${API_URL}/api/items/my-listings`, {
+        headers: getAuthHeaders(token)
       });
       console.log('Fetched items:', response.data);
       setUserItems(response.data);
     } catch (error) {
-      console.error('Error fetching items:', error);
+      console.error('Error fetching user items:', error);
       throw error;
     }
   };
 
   const fetchUserPurchases = async () => {
     try {
-      const response = await axios.get(`${API_URL}/api/users/purchases`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+      // Log the request details
+      console.log('Fetching purchases with token:', localStorage.getItem('token'));
+      
+      const response = await axios.get(`${API_URL}/api/items/my-purchases`, {
+        headers: getAuthHeaders(token)
       });
-      console.log('Fetched purchases:', response.data);
+      console.log('Purchases response:', response.data);
       setUserPurchases(response.data);
     } catch (error) {
-      console.error('Error fetching purchases:', error);
+      console.error('Error fetching purchases:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
       throw error;
     }
   };
@@ -213,33 +214,28 @@ const Profile = () => {
     );
   };
 
-  const handleUpdateAvatar = async () => {
+  const handleUpdateAvatar = async (newAvatar) => {
     try {
-      setUpdating(true);
-      await axios.put(
-        `${API_URL}/api/users/profile`,
-        { avatar: selectedAvatar },
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      console.log('Updating avatar to:', newAvatar);
       
-      // Update local user data
-      if (currentUser) {
-        currentUser.avatar = selectedAvatar;
-        localStorage.setItem('user', JSON.stringify(currentUser));
+      const response = await axios.put(`${API_URL}/api/users/profile`, {
+        avatar: newAvatar
+      }, {
+        headers: getAuthHeaders(token)
+      });
+
+      if (response.data.success && response.data.user) {
+        // Update local storage with new user data
+        const currentUser = JSON.parse(localStorage.getItem('user'));
+        const updatedUser = { ...currentUser, avatar: response.data.user.avatar };
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+        
+        // Force refresh to show new avatar
+        window.location.reload();
       }
-      
-      setOpenAvatarDialog(false);
-      setError('');
     } catch (error) {
       console.error('Error updating avatar:', error);
       setError('Failed to update avatar');
-    } finally {
-      setUpdating(false);
     }
   };
 
@@ -372,7 +368,7 @@ const Profile = () => {
         <DialogActions>
           <Button onClick={() => setOpenAvatarDialog(false)}>Cancel</Button>
           <Button
-            onClick={handleUpdateAvatar}
+            onClick={() => handleUpdateAvatar(selectedAvatar)}
             disabled={!selectedAvatar || updating}
           >
             {updating ? <CircularProgress size={24} /> : 'Save'}
