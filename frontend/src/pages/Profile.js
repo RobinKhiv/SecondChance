@@ -88,7 +88,6 @@ const Profile = () => {
       const response = await axios.get(`${API_URL}/api/items/my-listings`, {
         headers: getAuthHeaders(token)
       });
-      console.log('Fetched items:', response.data);
       setUserItems(response.data);
     } catch (error) {
       console.error('Error fetching user items:', error);
@@ -98,13 +97,9 @@ const Profile = () => {
 
   const fetchUserPurchases = async () => {
     try {
-      // Log the request details
-      console.log('Fetching purchases with token:', localStorage.getItem('token'));
-      
       const response = await axios.get(`${API_URL}/api/items/my-purchases`, {
         headers: getAuthHeaders(token)
       });
-      console.log('Purchases response:', response.data);
       setUserPurchases(response.data);
     } catch (error) {
       console.error('Error fetching purchases:', {
@@ -139,9 +134,6 @@ const Profile = () => {
 
     loadUserData();
   }, [token, currentUser]);
-
-  // Add this debug log
-  console.log('Current state:', { userItems, userPurchases, loading, error });
 
   useEffect(() => {
     // Reset visible items when changing tabs
@@ -216,8 +208,6 @@ const Profile = () => {
 
   const handleUpdateAvatar = async (newAvatar) => {
     try {
-      console.log('Updating avatar to:', newAvatar);
-      
       const response = await axios.put(`${API_URL}/api/users/profile`, {
         avatar: newAvatar
       }, {

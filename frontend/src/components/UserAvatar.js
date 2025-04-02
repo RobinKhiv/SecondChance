@@ -10,18 +10,11 @@ const UserAvatar = memo(({ user, src, alt, size = 40, ...props }) => {
     setAvatarSrc(src || user?.avatar);
   }, [src, user?.avatar]);
 
-  // Add console logs to debug
-  console.log('Avatar src:', avatarSrc);
-  console.log('Avatar loading:', loading);
-  console.log('Avatar error:', error);
-
   const handleLoad = () => {
-    console.log('Avatar loaded successfully');
     setLoading(false);
   };
 
   const handleError = () => {
-    console.log('Avatar failed to load');
     setLoading(false);
     setError(true);
   };

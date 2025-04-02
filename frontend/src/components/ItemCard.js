@@ -12,10 +12,8 @@ import { useNavigate } from 'react-router-dom';
 
 const ItemCard = ({ item }) => {
   const navigate = useNavigate();
-  console.log('Rendering ItemCard with item:', item); // Debug log
 
   if (!item) {
-    console.log('No item provided to ItemCard');
     return null;
   }
 
@@ -24,8 +22,6 @@ const ItemCard = ({ item }) => {
   
   // Get the first image or use a fallback
   const imageUrl = (images && images.length > 0) ? images[0] : 'https://via.placeholder.com/300';
-
-  console.log('Using image:', imageUrl); // Debug log
 
   return (
     <Card sx={{ 

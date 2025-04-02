@@ -39,7 +39,6 @@ function ItemDetail() {
       if (typeof itemData.images === 'string') {
         itemData.images = JSON.parse(itemData.images);
       }
-      console.log('Fetched item:', itemData);
       setItem(itemData);
     } catch (error) {
       console.error('Error fetching item:', error);
@@ -52,6 +51,7 @@ function ItemDetail() {
   const handlePurchase = async () => {
     try {
       setPurchaseLoading(true);
+      // eslint-disable-next-line no-unused-vars
       const response = await axios.post(
         `${API_URL}/api/items/${id}/purchase`,
         {},

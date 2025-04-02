@@ -55,7 +55,6 @@ function ItemList() {
         ...item,
         images: typeof item.images === 'string' ? JSON.parse(item.images) : item.images
       }));
-      console.log('Parsed items:', parsedItems);
       setItems(parsedItems);
       
       // Update price range based on actual items

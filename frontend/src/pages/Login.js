@@ -18,8 +18,6 @@ function Login() {
     
     try {
       const response = await login(email, password);
-      console.log('Login successful:', response);
-      // Navigate immediately after successful login
       navigate('/profile', { replace: true });
     } catch (error) {
       console.error('Login error:', error);
