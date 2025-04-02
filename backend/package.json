@@ -12,12 +12,11 @@
     "cors": "^2.8.5",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
-    "sqlite3": "^5.1.6"
+    "serverless-http": "^3.2.0"
   },
   "devDependencies": {
     "serverless": "^3.38.0",
     "serverless-dotenv-plugin": "^6.0.0",
-    "serverless-http": "^3.2.0",
     "serverless-offline": "^13.3.3"
   }
 }
